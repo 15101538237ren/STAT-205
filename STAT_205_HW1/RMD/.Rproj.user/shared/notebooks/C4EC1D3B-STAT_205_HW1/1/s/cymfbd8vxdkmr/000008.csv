@@ -1,0 +1,4 @@
+"0","legend(0.3, 1.25, legend=c("
+"0","  expression(paste(""updated posterior distribution for p("", theta, ""| x = 3)"")),"
+"0","  expression(paste(""updated prior distribution for p("", theta, "")""))),"
+"0","       col=c(""red"", ""black""), lty=1:2, cex=0.8)"

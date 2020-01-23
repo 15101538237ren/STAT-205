@@ -1,0 +1,4 @@
+"0","n = 10"
+"0","y = 6"
+"0","likelihood_data = dbinom(y, n, theta) # likelihood of data"
+"0","posterior_theta = (likelihood_data * prior_theta) / sum(likelihood_data * prior_theta) #posterior"

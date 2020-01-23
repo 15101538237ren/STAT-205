@@ -1,0 +1,268 @@
+---
+title: "STAT_205_HW1"
+author: "HONGLEI REN"
+date: "1/17/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=5, fig.height=4)
+```
+
+## Problem 1
+
+### 1.1 Posterior Distribution
+
+```{r}
+n = 5
+y = 3
+theta = c(0.3, 0.4, 0.5, 0.6, 0.7)
+prior_theta = c(0.05, 0.05, 0.8, 0.05, 0.05) #prior distribution
+```
+
+
+```{r}
+likelihood_data = dbinom(y, n, theta) # likelihood of data
+posterior_theta = (likelihood_data * prior_theta) / sum(likelihood_data * prior_theta) #posterior
+names(posterior_theta) = theta
+round(posterior_theta, 2)
+```
+
+```{r}
+plot(theta, posterior_theta,col="green", type="b",
+     xlab = expression(theta), ylab = "probability", ylim=range(c(0,1.3)))
+par(new=TRUE)
+plot(theta, prior_theta,col="blue", type="b", 
+     xlab = expression(theta), ylab = "probability", ylim=range(c(0,1.3)))
+legend(0.3, 1.25, legend=c(
+  expression(paste("posterior distribution for p(", theta, "| x = 3)")),
+  expression(paste("prior distribution for p(", theta, ")"))),
+       col=c("green", "blue"), lty=1:2, cex=0.8)
+```
+
+### 1.2 Posterior Mean
+
+```{r}
+expectation_of_theta = sum(theta * posterior_theta)
+```
+```{r echo = FALSE}
+expectation_of_theta
+```
+
+### 1.3 Update Posterior by New Data
+```{r}
+n = 7
+y = 6
+theta = c(0.3, 0.4, 0.5, 0.6, 0.7)
+prior_theta = posterior_theta
+likelihood_data = dbinom(y, n, theta) # likelihood of data
+posterior_theta = (likelihood_data * prior_theta) / sum(likelihood_data * prior_theta) #posterior
+```
+
+```{r echo = FALSE}
+plot(theta, posterior_theta,col="red", type="b",
+     xlab = expression(theta), ylab = "probability", ylim=range(c(0,1.3)))
+par(new=TRUE)
+plot(theta, prior_theta,col="black", type="b", 
+     xlab = expression(theta), ylab = "probability", ylim=range(c(0,1.3)))
+legend(0.3, 1.25, legend=c(
+  expression(paste("updated posterior distribution for p(", theta, "| x = 3)")),
+  expression(paste("updated prior distribution for p(", theta, ")"))),
+       col=c("red", "black"), lty=1:2, cex=0.8)
+```
+
+## Problem 2
+### 2.1 Prior Probability
+```{r}
+theta = c(0, .125, .250, .375, .500, .625, .750, .875, 1)
+prior_theta = c(.001, .001, .950, .008, .008, .008, .008, .008, .008)
+prior_prob = sum(prior_theta[theta > 0.5])
+```
+```{r echo = FALSE}
+prior_prob
+```
+
+### 2.2 Prior Predictive
+```{r}
+n = 10
+y = 7
+prior_predictive = sum(dbinom(y, n, theta))
+```
+```{r echo = FALSE}
+prior_predictive
+```
+
+### 0.4 Posterior Probability
+```{r}
+n = 10
+y = 6
+likelihood_data = dbinom(y, n, theta) # likelihood of data
+posterior_theta = (likelihood_data * prior_theta) / sum(likelihood_data * prior_theta) #posterior
+```
+
+```{r echo = FALSE}
+plot(theta, posterior_theta,col="green", type="b",
+     xlab = expression(theta), ylab = "probability", ylim=range(c(0,1.3)))
+par(new=TRUE)
+plot(theta, prior_theta,col="blue", type="b", 
+     xlab = expression(theta), ylab = "probability", ylim=range(c(0,1.3)))
+legend(0.3, 1.25, legend=c(
+  expression(paste("posterior distribution for p(", theta, "| x = 3)")),
+  expression(paste("prior distribution for p(", theta, ")"))),
+       col=c("green", "blue"), lty=1:2, cex=0.8)
+```
+
+The posterior probability that Bob has ESP ability is:
+```{r}
+posterior_prob = sum(posterior_theta[theta > 0.5])
+posterior_prob
+```
+
+
+## Problem 3
+### 3.1 Likelihood Function
+The likelihood function I considered for this problem is $Y \sim Bin(n, \theta)$, where $Y$ is the number of students that spells correctly, $\theta$ is the success rate of spelling.
+
+### 3.2 Prior Distribution
+Based on the prior of $20\%$ success rate with a sample size 5, the prior could be $\theta \sim Beta(a = 2, b = 3)$.
+
+### 3.3 Posterior Distribution
+The mathematical expression of the posterior distribution is: $$P(\theta|Y) \sim \frac{P(Y|\theta) P(\theta)}{P(Y)} = c \theta^{y+a-1}(1-\theta)^{n-y+b-1} = Beta(y+a, n-y+b)$$, where $n = 30, y=14, a = 2, b = 3$.
+
+```{r}
+a = 2; b = 3; n = 30; y = 14
+theta = seq(0, 1, by=0.05)
+prior_theta = dbeta(theta, a, b)
+likelihood_data = dbinom(y, n, theta)
+posterior_theta = (likelihood_data * prior_theta) / sum(likelihood_data * prior_theta)
+```
+
+```{r echo = FALSE}
+plot(theta, prior_theta/sum(prior_theta),col="green", type="b", xlab = expression(theta), ylab = "probability", ylim=range(c(0,0.4)))
+par(new=TRUE)
+plot(theta, likelihood_data,col="blue", type="b", xlab = expression(theta), ylab = "probability", ylim=range(c(0,0.4)))
+par(new=TRUE)
+plot(theta, posterior_theta, col="red", type="b", xlab = expression(theta), ylab = "probability", ylim=range(c(0,0.4)))
+legend(0.6, 0.4, legend=c("prior distribution", "likelihood", "posterior distribution"),
+       col=c("green", "blue", "red"), lty=1:1, cex=0.8)
+```
+
+### 3.4 Expectation
+The posterior expectation is:
+```{r echo = FALSE}
+posterior_expectation = sum(theta * posterior_theta)
+posterior_expectation
+```
+
+And the prior expectation is:
+```{r echo = FALSE}
+prior_expectation = sum(theta * (prior_theta / sum(prior_theta)))
+prior_expectation
+```
+
+Based on the posterior expectation compared with prior expectation, I think the effectiveness of his training practices has improved, because the average sucess rate of spelling was increased.
+
+### 3.5 Posterior Probablity that probablity of sucess in spelling is greater than $25\%$
+The posterior probablity that probablity of sucess in spelling is greater than $25\%$ is:
+```{r echo = FALSE}
+posterior_prob = sum(posterior_theta[theta > 0.25])
+posterior_prob
+```
+
+### 3.6 Difference Interpretion
+The difference between the posterior and prior is a reflection of the change in the effectiveness of training practice or any related factors.
+
+### 3.7 Posterior Predictive Probablity
+The Posterior Predictive Probablity is:
+```{r}
+A = y + a
+B = n - y + b
+theta_hat = A / (A + B)
+n = 20
+likelihood = sum(dbinom(5:n, n, theta_hat))
+likelihood
+```
+### 3.8 
+I choose $\theta \sim Beta(A = 16, B = 19)$ according to the previous data. The posterior is shown in the following figure, and the posterior expectation is:
+```{r echo = FALSE}
+n = 30; y = 10
+prior_theta = dbeta(theta, A, B)
+likelihood_data = dbinom(y, n, theta)
+posterior_theta = (likelihood_data * prior_theta) / sum(likelihood_data * prior_theta)
+posterior_expectation = sum(theta * posterior_theta)
+posterior_expectation
+```
+```{r echo = FALSE}
+plot(theta, prior_theta/sum(prior_theta),col="green", type="b", xlab = expression(theta), ylab = "probability", ylim=range(c(0,0.4)))
+par(new=TRUE)
+plot(theta, likelihood_data,col="blue", type="b", xlab = expression(theta), ylab = "probability", ylim=range(c(0,0.4)))
+par(new=TRUE)
+plot(theta, posterior_theta, col="red", type="b", xlab = expression(theta), ylab = "probability", ylim=range(c(0,0.4)))
+legend(0.6, 0.4, legend=c("prior distribution", "likelihood", "posterior distribution"),
+       col=c("green", "blue", "red"), lty=1:1, cex=0.8)
+```
+
+## Problem 4
+### 4.1 Model Description
+Because I don't have any knowledge about the clutch success probabilty, I assumed a uniform prior $\theta = \frac{1}{1001}$ for (0, 0.001, 0.002, ..., 0.999, 1.0). The likelihood would be an Binomial with $\theta$ as parameter.
+
+### 4.2 Posterior
+```{r include=FALSE}
+library(RColorBrewer)
+df <- read.csv("basketball.csv", header = T)
+color = grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
+nsample = nrow(df)
+colors = sample(color, nsample)
+probs = c(0.05, 0.25, 0.5, 0.75, 0.95)
+S = 100000
+data_summary = matrix(nrow =nsample, ncol = 6)
+
+prob_greater_than_overall = c()
+```
+
+```{r}
+theta = seq(0, 1, by=0.05)
+prior_theta = dbeta(theta, 1, 1)
+data_summary = matrix(nrow =nsample, ncol = 6)
+plot(1,type='n', xlab = expression(theta), ylab = "probability",xlim = range(c(0, 1.0)), ylim=range(c(0, 1.2)))
+for (idx in seq(1, nsample))
+{
+  y = df$cmake[idx]
+  n = df$cattempts[idx]
+  A = y + a;
+  B = n - y + b;
+  theta_hat = A / (A + B)
+  theta_star = rbeta(S, A, B)
+  posterior_theta = dbeta(theta, A, B)
+  posterior_theta = posterior_theta/sum(posterior_theta)
+  lines(theta, posterior_theta, col=colors[idx])
+  qtl = quantile(theta_star, probs= probs)
+  mn = mean(theta_star)
+  data_summary[idx, ] = c(mn, qtl)
+  theta_cdf = ecdf(theta_star)
+  prob_greater_than_overall = c(prob_greater_than_overall, theta_cdf(1.) - theta_cdf(df$overall_proportion[idx]))
+}
+
+legend(0., 1.2, legend=as.character(df$players),
+       col=colors, lty=1:1, cex=0.8)
+```
+### 4.3 Summarize the Posterior
+```{r}
+library(knitr)
+dt = as.data.frame(data_summary, as.character(df$players))
+colnames(dt) = c("mean", "5% percentile", "25% percentile", "50% percentile", "75% percentile", "95% percentile")
+kable(dt, caption="Summary for posterior")
+```
+
+### 4.4 Probability clutch > overall proportion
+The probability clutch > overall proportion is summarized as follows: 
+```{r}
+ds = data.frame("players" = df$players, "Prob" = prob_greater_than_overall)
+
+kable(ds, caption="Table for probability clutch > overall proportion")
+```
+
+From the table above, we can see all players have a lower probility for clutch than overall proportion, and James Harden, Giannis, Anthony Davis, Durant has extremely different clutch percentage.
