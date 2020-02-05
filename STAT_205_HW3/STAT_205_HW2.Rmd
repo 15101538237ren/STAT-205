@@ -1,0 +1,136 @@
+---
+title: "STAT_205_HW2"
+author: "HONGLEI REN"
+date: "1/20/2020"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=5, fig.height=4)
+```
+
+```{r include=FALSE}
+library(knitr)
+```
+
+## Problem 1
+
+### 1.1 Propose a conjugate Normal Prior $\mu \sim N(\mu_0, \tau_0)$
+
+According to the percentile table of standard normal distribution, we know that:
+
+$$z = \frac{x - \mu_0}{\sqrt{\tau_0}} = \frac{42 - 40}{\sqrt{\tau_0}} = \frac{2}{\sqrt{\tau_0}}= 1.96$$, and we got $\tau_0 = (\frac{2}{1.96})^2$. Therefore, the Normal prior is $\mu \sim N(40, (\frac{2}{1.96})^2)$.
+
+### 1.2 The Posterior Expectation
+
+Suppose $\tau_0 = \frac{\sigma^2}{m} =  \frac{10^2}{m} = (\frac{2}{1.96})^2$, therefore, $m = 96.04$.
+
+Then, we have $Y|\mu, \sigma^2 \sim Normal(\mu, 10^2), \mu \sim N(40, \frac{10^2}{96.04})$. The posterior is:$$\mu|Y \sim N(w\overline{Y} + (1 - w) \mu_0, \frac{\sigma^2}{n + m})$$, where $w = \frac{n}{n + m}$, $\overline{Y} = 45.283$ is the sample mean.
+
+Therefore, the posterior mean is $40.586$, which is very close to the prior mean although the sample mean $45.283$ is much higher, and this is caused by a strong prior. 
+
+In our case, the relative contribution of prior is $0.89$ and data for posterior expectation is $0.11$.
+
+### 1.3 The Posterior Distribution
+From the figure below, we can see that posterior distribution $mu$ shifts towards right of the prior, which means the data suggest average snowfall observed are higher than our prior knowledge.
+
+```{r}
+#Data
+snowfall = c(38.6, 42.4, 57.5, 40.5, 51.7, 67.1, 33.4, 60.9, 64.1, 40.1, 40.7, 6.4)
+mean_snowfall = mean(snowfall)
+
+#Params
+n = length(snowfall)
+m = 96.04
+mu0 = 40
+sigma = 10
+w = n / (n + m)
+mu = seq(35, 45, 0.5)
+
+# Calculate prior and posterior
+prior_mu = dnorm(mu, mean = mu0, sd= (sigma^2) / m)
+posterior_mean = w * mean_snowfall + (1 - w) * mu0
+posterior_sd = (sigma^2) / (n + m)
+posterior_mu = dnorm(mu, mean = posterior_mean, sd= posterior_sd)
+
+# Plotting
+plot(mu, prior_mu/sum(prior_mu),col="blue", type="b", xlab = expression(mu), ylab = "probability", ylim=range(c(0,0.3)))
+par(new=TRUE)
+plot(mu, posterior_mu/sum(posterior_mu), col="red", type="b", xlab = expression(mu), ylab = "probability", ylim=range(c(0,0.3)))
+legend(35, 0.28, legend=c("prior", "posterior"),
+       col=c("blue", "red"), lty=1:1, cex=0.8)
+```
+
+### 1.4 Quantiles of Posterior Distribution
+
+```{r}
+S = 100000 #Sample size
+mu_star = rnorm(S, posterior_mean, posterior_sd)
+pct_10 = quantile(mu_star, 0.1)
+pct_10
+pct_90 = quantile(mu_star, 0.9)
+pct_90
+```
+
+The $10\%$ quantiles of the posterior distribution is `r pct_10` and the and $90\%$ percentile is `r pct_90`.
+
+### 1.5 Posterior mean of log($\mu$)
+
+```{r}
+S = 100000 #Sample size
+mu_star = rnorm(S, posterior_mean, posterior_sd)
+log_mu = log(mu_star)
+mean_log_mu = mean(log_mu)
+# Plotting
+plot(density(log_mu),col="blue", type="l", xlab = expression(log(mu)), ylab = "probability", ylim=range(c(0, 20.0)), main=expression("PDF of " ~ log(mu)))
+legend(3.5, 0.28, legend=c("log(mu)"),
+       col=c("blue"), lty=1:1, cex=0.8)
+mean_log_mu
+```
+
+I first draw 10000 samples from the posterior distribution of $\mu$, and then perform a **log** transformation. Finally, I calculate the mean from the log transformed samples of $\mu$, and the posterior mean of $log(\mu)$ =`r mean_log_mu`.
+
+
+## Problem 2 
+
+### 2.1 Derive posterior 
+
+The number of ASE for $N$ patient follows $Y \sim Poisson(N \lambda)$ and $\lambda \sim Gamma(a, b)$.
+
+The likelihood function is : $$f(Y|\lambda) \propto exp(-N \lambda) \lambda^Y$$, where $N = 50, Y = 12 + 6*2 + 2 * 10 = 44$.
+
+The prior function is: $$\pi(\lambda) \propto exp(-b \lambda) \lambda^a$$
+
+Therefore, the posterior is: $$p(\lambda | Y) \propto exp(-\lambda) \lambda^Y exp(-b \lambda) \lambda^a \propto exp(-B \lambda) * \lambda^A$$, where $A = a + Y$, $B = b + N$.
+$$p(\lambda | Y) = Gamma(A, B)$$.
+
+```{r}
+N = 9
+Y = 0.5
+a = b = 0.01
+A = Y + a
+B = N + b
+lambdav = seq(0, 20, 0.5)
+prior_lambda = dgamma(lambdav, shape = a, scale= b)
+posterior_lambda = dgamma(lambdav, shape = A, scale=B)
+
+# Plotting
+plot(lambdav, prior_lambda/sum(prior_lambda),col="blue", type="b", xlab = expression(lambda), ylab = "probability", ylim=range(c(0,0.5)))
+par(new=TRUE)
+plot(lambdav, posterior_lambda/sum(posterior_lambda), col="red", type="b", xlab = expression(lambda), ylab = "probability", ylim=range(c(0,0.5)))
+legend(0, 0.28, legend=c("prior", "posterior"),
+       col=c("blue", "red"), lty=1:1, cex=0.8)
+```
+
+
+
+
+
+
+
+
+

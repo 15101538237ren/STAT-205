@@ -1,0 +1,106 @@
+---
+title: "STAT_205_HW3"
+author: "HONGLEI REN"
+date: "02/03/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=5, fig.height=4)
+```
+
+```{r include=FALSE}
+rm(list=ls())
+library(knitr)
+library(R2jags)
+library(epiR)
+library(bayesplot)
+library(ggplot2)
+library(coda)
+```
+
+# Problem 1
+
+### Use BetaBuster to find the Beta(a,b) priors for mode 0.75 and 5th percentile 0.60, and for mode 0.01 and 99th percentile 0.02. What is the Beta prior when the mode is 1 and the first percentile is 0.80?
+```{r}
+S = 100000 #Sample size
+dist1 <- epi.betabuster(mode = 0.75, conf = 0.05, greaterthan = F, x = 0.6)
+dist1$shape1;dist1$shape2
+s1 <- rbeta(S, dist1$shape1, dist1$shape2)
+dist2 <- epi.betabuster(mode = 0.01, conf = 0.99, greaterthan = F, x = 0.02)
+dist2$shape1;dist2$shape2
+s2 <- rbeta(S, dist2$shape1, dist2$shape2)
+dist3 <- epi.betabuster(mode = 1, conf = 0.01, greaterthan = F, x = 0.8)
+dist3$shape1;dist3$shape2
+s3 <- rbeta(S, dist3$shape1, dist3$shape2)
+
+# Plotting
+plot(density(s1),col="red", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s2),col="green", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s3),col="blue", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+legend(0.2, 20, legend=c("1) Beta(23.57, 8.52)", "2) eta(11, 994.5)", "3) Beta(20.64, 1)"),
+       col=c("red", "green", "blue"), lty=1:1, cex=0.8)
+```
+
+# Problem 2
+## 2.1 Propose a model to conduct a meta-analysis
+
+The model I considered for this study is as follows:
+$$Y_i \overset{\text{ind}}{\sim} Binomial(n_i, \theta_i)$$
+$$\theta_i \overset{\text{iid}}{\sim} Beta(\alpha, \beta)$$
+$$\alpha, \beta {\sim} p(\alpha, \beta)$$, which describes the probability of "hit" is from a prior distribution $Beta(\alpha, \beta)$, and it describes the variablity across trails.
+
+## 2.2 Write model in Jags
+```{r}
+ESP.data=read.csv("./GanzStudiesUsed-56.csv", header=T)
+head(ESP.data)
+
+jags_model = "model{
+  for (i in 1 : N){
+  Y[i] ~ dbin(theta[i], n[i])
+  theta[i] ~ dbeta(alpha, beta)
+  }
+  theta_posterior ~ dbeta(alpha, beta)
+  alpha = eta * mu
+  beta = eta * (1-mu)
+  eta ~ dlnorm(m, 1/C)
+  mu ~ dbeta(a, b)
+}"
+
+jags.data = list(Y = ESP.data$hits, n = ESP.data$n, N = dim(ESP.data)[1], a = 20, b = 20, m=0, C=3)
+jags.param <- c("theta", "alpha", "beta", "theta_posterior")
+jags_fit <- jags(data = jags.data, n.chains = 5, inits = NULL, parameters.to.save = jags.param,n.iter=2000, n.burnin = 1000, DIC=T, model.file = textConnection(jags_model))
+
+jags.mcmc = as.mcmc(jags_fit)
+mcmc_trace(jags.mcmc, pars = c("alpha", "beta", "theta_posterior"))
+color_scheme_set("blue")
+p1 <- mcmc_intervals(jags.mcmc, pars = c("alpha", "beta", "theta_posterior", "theta[1]", "theta[2]", "theta[3]", "theta[4]", "theta[5]", "theta[6]"))
+p1 + vline_at(0.5, linetype = 3, size = 0.25)
+```
+
+## 2.3 Choice of Priors
+
+```{r}
+open_mind_prior <- epi.betabuster(mode = 0.25, conf = 0.95, greaterthan = F, x = 0.3)
+psi_believer_prior <- epi.betabuster(mode = 0.33, conf = 0.95, greaterthan = F, x = 0.36)
+psi_skeptic_prior <- epi.betabuster(mode = 0.25, conf = 0.95, greaterthan = F, x = 0.255)
+```
+
+The open-minded prior estimated is: Beta(`r  open_mind_prior$shape1`, `r  open_mind_prior$shape2`)
+
+The psi believer prior estimated is: Beta(`r  psi_believer_prior$shape1`, `r  psi_believer_prior$shape2`)
+
+The psi skepticr prior estimated is: Beta(`r  psi_skeptic_prior$shape1`, `r  psi_skeptic_prior$shape2`)
+
+## 2.4 Posterior Mean and 95% Posterior Credible Interval
+
+```{r}
+prior_mu = open_mind_prior$shape1/(open_mind_prior$shape1 +open_mind_prior$shape2)
+open_mind_data = list(Y = ESP.data$hits, n = ESP.data$n, N = dim(ESP.data)[1], a = 20, b = 20, m=0, C=3)
+jags_model <- jags.model(textConnection(jags_model), data = jags.data, n.chains = 5)
+model_samples = coda.samples(jags_model, c("theta_posterior"), n.iter=2000)
+summary(window(model_samples, start = 1000))
+```
