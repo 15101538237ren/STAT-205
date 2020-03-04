@@ -132,8 +132,9 @@ know that:
 and we got \(\tau_0 = (\frac{2}{1.96})^2\). Therefore, the Normal prior
 is \(\mu \sim N(40, (\frac{2}{1.96})^2)\).
 
-\hypertarget{the-posterior}{%
-\subsubsection{1.2 The Posterior}\label{the-posterior}}
+\hypertarget{the-posterior-expectation}{%
+\subsubsection{1.2 The Posterior
+Expectation}\label{the-posterior-expectation}}
 
 Suppose
 \(\tau_0 = \frac{\sigma^2}{m} = \frac{10^2}{m} = (\frac{2}{1.96})^2\),
@@ -143,15 +144,162 @@ Then, we have
 \(Y|\mu, \sigma^2 \sim Normal(\mu, 10^2), \mu \sim N(40, \frac{10^2}{96.04})\).
 The posterior
 is:\[\mu|Y \sim N(w\overline{Y} + (1 - w) \mu_0, \frac{\sigma^2}{n + m})\],
-where \(w = \frac{n}{n + m}\), \(\overline{Y} = 0\) is the sample mean.
+where \(w = \frac{n}{n + m}\), \(\overline{Y} = 45.283\) is the sample
+mean.
+
+Therefore, the posterior mean is \(40.586\), which is very close to the
+prior mean although the sample mean \(45.283\) is much higher, and this
+is caused by a strong prior.
+
+In our case, the relative contribution of prior is \(0.89\) and data for
+posterior expectation is \(0.11\).
+
+\hypertarget{the-posterior-distribution}{%
+\subsubsection{1.3 The Posterior
+Distribution}\label{the-posterior-distribution}}
+
+From the figure below, we can see that posterior distribution \(mu\)
+shifts towards right of the prior, which means the data suggest average
+snowfall observed are higher than our prior knowledge.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{n =}\StringTok{ }\DecValTok{5}
-\NormalTok{y =}\StringTok{ }\DecValTok{3}
-\NormalTok{theta =}\StringTok{ }\KeywordTok{c}\NormalTok{(}\FloatTok{0.3}\NormalTok{, }\FloatTok{0.4}\NormalTok{, }\FloatTok{0.5}\NormalTok{, }\FloatTok{0.6}\NormalTok{, }\FloatTok{0.7}\NormalTok{)}
-\NormalTok{prior_theta =}\StringTok{ }\KeywordTok{c}\NormalTok{(}\FloatTok{0.05}\NormalTok{, }\FloatTok{0.05}\NormalTok{, }\FloatTok{0.8}\NormalTok{, }\FloatTok{0.05}\NormalTok{, }\FloatTok{0.05}\NormalTok{) }\CommentTok{#prior distribution}
+\CommentTok{#Data}
+\NormalTok{snowfall =}\StringTok{ }\KeywordTok{c}\NormalTok{(}\FloatTok{38.6}\NormalTok{, }\FloatTok{42.4}\NormalTok{, }\FloatTok{57.5}\NormalTok{, }\FloatTok{40.5}\NormalTok{, }\FloatTok{51.7}\NormalTok{, }\FloatTok{67.1}\NormalTok{, }\FloatTok{33.4}\NormalTok{, }\FloatTok{60.9}\NormalTok{, }\FloatTok{64.1}\NormalTok{, }\FloatTok{40.1}\NormalTok{, }\FloatTok{40.7}\NormalTok{, }\FloatTok{6.4}\NormalTok{)}
+\NormalTok{mean_snowfall =}\StringTok{ }\KeywordTok{mean}\NormalTok{(snowfall)}
+
+\CommentTok{#Params}
+\NormalTok{n =}\StringTok{ }\KeywordTok{length}\NormalTok{(snowfall)}
+\NormalTok{m =}\StringTok{ }\FloatTok{96.04}
+\NormalTok{mu0 =}\StringTok{ }\DecValTok{40}
+\NormalTok{sigma =}\StringTok{ }\DecValTok{10}
+\NormalTok{w =}\StringTok{ }\NormalTok{n }\OperatorTok{/}\StringTok{ }\NormalTok{(n }\OperatorTok{+}\StringTok{ }\NormalTok{m)}
+\NormalTok{mu =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\DecValTok{35}\NormalTok{, }\DecValTok{45}\NormalTok{, }\FloatTok{0.5}\NormalTok{)}
+
+\CommentTok{# Calculate prior and posterior}
+\NormalTok{prior_mu =}\StringTok{ }\KeywordTok{dnorm}\NormalTok{(mu, }\DataTypeTok{mean =}\NormalTok{ mu0, }\DataTypeTok{sd=}\NormalTok{ (sigma}\OperatorTok{^}\DecValTok{2}\NormalTok{) }\OperatorTok{/}\StringTok{ }\NormalTok{m)}
+\NormalTok{posterior_mean =}\StringTok{ }\NormalTok{w }\OperatorTok{*}\StringTok{ }\NormalTok{mean_snowfall }\OperatorTok{+}\StringTok{ }\NormalTok{(}\DecValTok{1} \OperatorTok{-}\StringTok{ }\NormalTok{w) }\OperatorTok{*}\StringTok{ }\NormalTok{mu0}
+\NormalTok{posterior_sd =}\StringTok{ }\NormalTok{(sigma}\OperatorTok{^}\DecValTok{2}\NormalTok{) }\OperatorTok{/}\StringTok{ }\NormalTok{(n }\OperatorTok{+}\StringTok{ }\NormalTok{m)}
+\NormalTok{posterior_mu =}\StringTok{ }\KeywordTok{dnorm}\NormalTok{(mu, }\DataTypeTok{mean =}\NormalTok{ posterior_mean, }\DataTypeTok{sd=}\NormalTok{ posterior_sd)}
+
+\CommentTok{# Plotting}
+\KeywordTok{plot}\NormalTok{(mu, prior_mu}\OperatorTok{/}\KeywordTok{sum}\NormalTok{(prior_mu),}\DataTypeTok{col=}\StringTok{"blue"}\NormalTok{, }\DataTypeTok{type=}\StringTok{"b"}\NormalTok{, }\DataTypeTok{xlab =} \KeywordTok{expression}\NormalTok{(mu), }\DataTypeTok{ylab =} \StringTok{"probability"}\NormalTok{, }\DataTypeTok{ylim=}\KeywordTok{range}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.3}\NormalTok{)))}
+\KeywordTok{par}\NormalTok{(}\DataTypeTok{new=}\OtherTok{TRUE}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(mu, posterior_mu}\OperatorTok{/}\KeywordTok{sum}\NormalTok{(posterior_mu), }\DataTypeTok{col=}\StringTok{"red"}\NormalTok{, }\DataTypeTok{type=}\StringTok{"b"}\NormalTok{, }\DataTypeTok{xlab =} \KeywordTok{expression}\NormalTok{(mu), }\DataTypeTok{ylab =} \StringTok{"probability"}\NormalTok{, }\DataTypeTok{ylim=}\KeywordTok{range}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.3}\NormalTok{)))}
+\KeywordTok{legend}\NormalTok{(}\DecValTok{35}\NormalTok{, }\FloatTok{0.28}\NormalTok{, }\DataTypeTok{legend=}\KeywordTok{c}\NormalTok{(}\StringTok{"prior"}\NormalTok{, }\StringTok{"posterior"}\NormalTok{),}
+       \DataTypeTok{col=}\KeywordTok{c}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\StringTok{"red"}\NormalTok{), }\DataTypeTok{lty=}\DecValTok{1}\OperatorTok{:}\DecValTok{1}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.8}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
+
+\includegraphics{STAT_205_HW2_files/figure-latex/unnamed-chunk-2-1.pdf}
+
+\hypertarget{quantiles-of-posterior-distribution}{%
+\subsubsection{1.4 Quantiles of Posterior
+Distribution}\label{quantiles-of-posterior-distribution}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{S =}\StringTok{ }\DecValTok{100000} \CommentTok{#Sample size}
+\NormalTok{mu_star =}\StringTok{ }\KeywordTok{rnorm}\NormalTok{(S, posterior_mean, posterior_sd)}
+\NormalTok{pct_}\DecValTok{10}\NormalTok{ =}\StringTok{ }\KeywordTok{quantile}\NormalTok{(mu_star, }\FloatTok{0.1}\NormalTok{)}
+\NormalTok{pct_}\DecValTok{10}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##      10% 
+## 39.39856
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pct_}\DecValTok{90}\NormalTok{ =}\StringTok{ }\KeywordTok{quantile}\NormalTok{(mu_star, }\FloatTok{0.9}\NormalTok{)}
+\NormalTok{pct_}\DecValTok{90}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##      90% 
+## 41.77723
+\end{verbatim}
+
+The \(10\%\) quantiles of the posterior distribution is 39.3985587 and
+the and \(90\%\) percentile is 41.7772265.
+
+\hypertarget{posterior-mean-of-logmu}{%
+\subsubsection{\texorpdfstring{1.5 Posterior mean of
+log(\(\mu\))}{1.5 Posterior mean of log(\textbackslash mu)}}\label{posterior-mean-of-logmu}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{S =}\StringTok{ }\DecValTok{100000} \CommentTok{#Sample size}
+\NormalTok{mu_star =}\StringTok{ }\KeywordTok{rnorm}\NormalTok{(S, posterior_mean, posterior_sd)}
+\NormalTok{log_mu =}\StringTok{ }\KeywordTok{log}\NormalTok{(mu_star)}
+\NormalTok{mean_log_mu =}\StringTok{ }\KeywordTok{mean}\NormalTok{(log_mu)}
+\CommentTok{# Plotting}
+\KeywordTok{plot}\NormalTok{(}\KeywordTok{density}\NormalTok{(log_mu),}\DataTypeTok{col=}\StringTok{"blue"}\NormalTok{, }\DataTypeTok{type=}\StringTok{"l"}\NormalTok{, }\DataTypeTok{xlab =} \KeywordTok{expression}\NormalTok{(}\KeywordTok{log}\NormalTok{(mu)), }\DataTypeTok{ylab =} \StringTok{"probability"}\NormalTok{, }\DataTypeTok{ylim=}\KeywordTok{range}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\FloatTok{20.0}\NormalTok{)), }\DataTypeTok{main=}\KeywordTok{expression}\NormalTok{(}\StringTok{"PDF of "} \OperatorTok{~}\StringTok{ }\KeywordTok{log}\NormalTok{(mu)))}
+\KeywordTok{legend}\NormalTok{(}\FloatTok{3.5}\NormalTok{, }\FloatTok{0.28}\NormalTok{, }\DataTypeTok{legend=}\KeywordTok{c}\NormalTok{(}\StringTok{"log(mu)"}\NormalTok{),}
+       \DataTypeTok{col=}\KeywordTok{c}\NormalTok{(}\StringTok{"blue"}\NormalTok{), }\DataTypeTok{lty=}\DecValTok{1}\OperatorTok{:}\DecValTok{1}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.8}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{STAT_205_HW2_files/figure-latex/unnamed-chunk-4-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mean_log_mu}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 3.7032
+\end{verbatim}
+
+I first draw 10000 samples from the posterior distribution of \(\mu\),
+and then perform a \textbf{log} transformation. Finally, I calculate the
+mean from the log transformed samples of \(\mu\), and the posterior mean
+of \(log(\mu)\) =3.7032001.
+
+\hypertarget{problem-2}{%
+\subsection{Problem 2}\label{problem-2}}
+
+\hypertarget{derive-posterior}{%
+\subsubsection{2.1 Derive posterior}\label{derive-posterior}}
+
+The number of ASE for \(N\) patient follows
+\(Y \sim Poisson(N \lambda)\) and \(\lambda \sim Gamma(a, b)\).
+
+The likelihood function is :
+\[f(Y|\lambda) \propto exp(-N \lambda) \lambda^Y\], where
+\(N = 50, Y = 12 + 6*2 + 2 * 10 = 44\).
+
+The prior function is:
+\[\pi(\lambda) \propto exp(-b \lambda) \lambda^a\]
+
+Therefore, the posterior is:
+\[p(\lambda | Y) \propto exp(-\lambda) \lambda^Y exp(-b \lambda) \lambda^a \propto exp(-B \lambda) * \lambda^A\],
+where \(A = a + Y\), \(B = b + N\). \[p(\lambda | Y) = Gamma(A, B)\].
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{N =}\StringTok{ }\DecValTok{9}
+\NormalTok{Y =}\StringTok{ }\FloatTok{0.5}
+\NormalTok{a =}\StringTok{ }\NormalTok{b =}\StringTok{ }\FloatTok{0.01}
+\NormalTok{A =}\StringTok{ }\NormalTok{Y }\OperatorTok{+}\StringTok{ }\NormalTok{a}
+\NormalTok{B =}\StringTok{ }\NormalTok{N }\OperatorTok{+}\StringTok{ }\NormalTok{b}
+\NormalTok{lambdav =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{20}\NormalTok{, }\FloatTok{0.5}\NormalTok{)}
+\NormalTok{prior_lambda =}\StringTok{ }\KeywordTok{dgamma}\NormalTok{(lambdav, }\DataTypeTok{shape =}\NormalTok{ a, }\DataTypeTok{scale=}\NormalTok{ b)}
+\NormalTok{posterior_lambda =}\StringTok{ }\KeywordTok{dgamma}\NormalTok{(lambdav, }\DataTypeTok{shape =}\NormalTok{ A, }\DataTypeTok{scale=}\NormalTok{B)}
+
+\CommentTok{# Plotting}
+\KeywordTok{plot}\NormalTok{(lambdav, prior_lambda}\OperatorTok{/}\KeywordTok{sum}\NormalTok{(prior_lambda),}\DataTypeTok{col=}\StringTok{"blue"}\NormalTok{, }\DataTypeTok{type=}\StringTok{"b"}\NormalTok{, }\DataTypeTok{xlab =} \KeywordTok{expression}\NormalTok{(lambda), }\DataTypeTok{ylab =} \StringTok{"probability"}\NormalTok{, }\DataTypeTok{ylim=}\KeywordTok{range}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.5}\NormalTok{)))}
+\KeywordTok{par}\NormalTok{(}\DataTypeTok{new=}\OtherTok{TRUE}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(lambdav, posterior_lambda}\OperatorTok{/}\KeywordTok{sum}\NormalTok{(posterior_lambda), }\DataTypeTok{col=}\StringTok{"red"}\NormalTok{, }\DataTypeTok{type=}\StringTok{"b"}\NormalTok{, }\DataTypeTok{xlab =} \KeywordTok{expression}\NormalTok{(lambda), }\DataTypeTok{ylab =} \StringTok{"probability"}\NormalTok{, }\DataTypeTok{ylim=}\KeywordTok{range}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.5}\NormalTok{)))}
+\KeywordTok{legend}\NormalTok{(}\DecValTok{0}\NormalTok{, }\FloatTok{0.28}\NormalTok{, }\DataTypeTok{legend=}\KeywordTok{c}\NormalTok{(}\StringTok{"prior"}\NormalTok{, }\StringTok{"posterior"}\NormalTok{),}
+       \DataTypeTok{col=}\KeywordTok{c}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\StringTok{"red"}\NormalTok{), }\DataTypeTok{lty=}\DecValTok{1}\OperatorTok{:}\DecValTok{1}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.8}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{STAT_205_HW2_files/figure-latex/unnamed-chunk-5-1.pdf}
 
 \end{document}
