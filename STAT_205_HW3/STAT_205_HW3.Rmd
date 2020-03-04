@@ -1,0 +1,266 @@
+---
+title: "STAT_205_HW3"
+author: "HONGLEI REN"
+date: "02/03/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=5, fig.height=4)
+```
+
+```{r include=FALSE}
+rm(list=ls())
+library(knitr)
+library(R2jags)
+library(epiR)
+library(bayesplot)
+library(ggplot2)
+library(coda)
+```
+
+# Problem 1
+
+### Use BetaBuster to find the Beta(a,b) priors for mode 0.75 and 5th percentile 0.60, and for mode 0.01 and 99th percentile 0.02. What is the Beta prior when the mode is 1 and the first percentile is 0.80?
+```{r}
+S = 100000 #Sample size
+dist1 <- epi.betabuster(mode = 0.75, conf = 0.05, greaterthan = F, x = 0.6)
+dist1$shape1;dist1$shape2
+s1 <- rbeta(S, dist1$shape1, dist1$shape2)
+dist2 <- epi.betabuster(mode = 0.01, conf = 0.99, greaterthan = F, x = 0.02)
+dist2$shape1;dist2$shape2
+s2 <- rbeta(S, dist2$shape1, dist2$shape2)
+dist3 <- epi.betabuster(mode = 1, conf = 0.01, greaterthan = F, x = 0.8)
+dist3$shape1;dist3$shape2
+s3 <- rbeta(S, dist3$shape1, dist3$shape2)
+
+# Plotting
+plot(density(s1),col="red", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s2),col="green", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s3),col="blue", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+legend(0.2, 20, legend=c("1) Beta(23.57, 8.52)", "2) eta(11, 994.5)", "3) Beta(20.64, 1)"),
+       col=c("red", "green", "blue"), lty=1:1, cex=0.8)
+```
+
+# Problem 2
+## 2.1 Propose a model to conduct a meta-analysis
+
+The model I considered for this study is as follows:
+$$Y_i \overset{\text{ind}}{\sim} Binomial(n_i, \theta_i)$$
+$$\theta_i \overset{\text{iid}}{\sim} Beta(\alpha, \beta)$$
+$$\alpha, \beta {\sim} p(\alpha, \beta)$$, which describes the probability of "hit" is from a prior distribution $Beta(\alpha, \beta)$, and it describes the variablity across trails.
+
+## 2.2 Write model in Jags
+```{r}
+ESP.data=read.csv("./GanzStudiesUsed-56.csv", header=T)
+head(ESP.data)
+
+jags_model = "model{
+  for (i in 1 : N){
+  Y[i] ~ dbin(theta[i], n[i])
+  theta[i] ~ dbeta(alpha, beta)
+  }
+  alpha = eta * mu
+  beta = eta * (1-mu)
+  eta ~ dlnorm(m, 1/C)
+  mu ~ dbeta(a, b)
+}"
+
+jags.data = list(Y = ESP.data$hits, n = ESP.data$n, N = dim(ESP.data)[1], a = 20, b = 20, m=0, C=3)
+jags.param <- c("theta", "alpha", "beta", "mu", "eta")
+jags_fit <- jags(data = jags.data, n.chains = 5, inits = NULL, parameters.to.save = jags.param,n.iter=2000, n.burnin = 1000, DIC=T, model.file = textConnection(jags_model))
+
+jags.mcmc = as.mcmc(jags_fit)
+mcmc_trace(jags.mcmc, pars = c("mu"))
+```
+
+## 2.3 Choice of Priors
+
+```{r}
+open_mind_prior <- epi.betabuster(mode = 0.25, conf = 0.95, greaterthan = F, x = 0.3)
+a1 = open_mind_prior$shape1; b1 = open_mind_prior$shape2;
+
+psi_believer_prior <- epi.betabuster(mode = 0.33, conf = 0.95, greaterthan = F, x = 0.36)
+a2 = psi_believer_prior$shape1; b2 = psi_believer_prior$shape2;
+
+psi_skeptic_prior <- epi.betabuster(mode = 0.25, conf = 0.95, greaterthan = F, x = 0.255)
+a3 = psi_skeptic_prior$shape1; b3 = psi_skeptic_prior$shape2
+```
+
+The open-minded prior estimated is: Beta(`r  open_mind_prior$shape1`, `r  open_mind_prior$shape2`)
+
+The psi believer prior estimated is: Beta(`r  psi_believer_prior$shape1`, `r  psi_believer_prior$shape2`)
+
+The psi skepticr prior estimated is: Beta(`r  psi_skeptic_prior$shape1`, `r  psi_skeptic_prior$shape2`)
+
+## 2.4 
+
+## 2.4.1 Posterior Mean is 0.319 and 95% CI is (0.292, 0.348) for Open Mind Prior.
+
+```{r}
+jags.param <- c("mu", "alpha", "beta")
+data_open_mind_prior = list(Y = ESP.data$hits, n = ESP.data$n, N = dim(ESP.data)[1], a = a1, b = b1, m=0, C=3)
+```
+
+```{r include=FALSE}
+jags_fit_open_mind_prior <- jags(data = data_open_mind_prior, n.chains = 5, inits = NULL, parameters.to.save = jags.param,n.iter=2000, n.burnin = 1000, DIC=T, model.file = textConnection(jags_model))
+```
+
+```{r}
+print(jags_fit_open_mind_prior)
+```
+
+## 2.4.2 Posterior Mean is 0.335 and 95% CI is (0.308, 0.364) for Psi Believer Prior.
+```{r}
+data_psi_believer_prior = list(Y = ESP.data$hits, n = ESP.data$n, N = dim(ESP.data)[1], a = a2, b = b2, m=0, C=3)
+```
+
+```{r include=FALSE}
+jags_fit_psi_believer_prior <- jags(data = data_psi_believer_prior, n.chains = 5, inits = NULL, parameters.to.save = jags.param,n.iter=2000, n.burnin = 1000, DIC=T, model.file = textConnection(jags_model))
+```
+
+```{r}
+print(jags_fit_psi_believer_prior)
+```
+
+## 2.4.3 Posterior Mean is 0.310 and 95% CI is (0.282, 0.336) for Psi Skeptic Prior.
+
+```{r}
+data_psi_skeptic_prior = list(Y = ESP.data$hits, n = ESP.data$n, N = dim(ESP.data)[1], a = a3, b = b3, m=0, C=3)
+```
+
+```{r include=FALSE}
+jags_fit_psi_skeptic_prior <- jags(data = data_psi_skeptic_prior, n.chains = 5, inits = NULL, parameters.to.save = jags.param,n.iter=2000, n.burnin = 1000, DIC=T, model.file = textConnection(jags_model))
+```
+
+```{r}
+print(jags_fit_psi_skeptic_prior)
+```
+
+#2.5 Plotting
+## 2.5.1 Plot for Open Mind Prior
+```{r}
+s_open_mind_prior <- rbeta(S, a1, b1)
+s_post_open_mind_prior <- rbeta(S, 9.348, 19.997)
+
+plot(density(s_open_mind_prior),col="blue", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s_post_open_mind_prior),col="red", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+legend(0.2, 20, legend=c("Open Mind Prior Beta(58.8, 74.5)", "Posterior Beta(9.348, 19.997)"),
+       col=c("blue",  "red"), lty=1:1, cex=0.8)
+
+```
+
+## 2.5.2 Plot for Psi Believer Prior
+```{r}
+s_psi_believer_prior <- rbeta(S, a2, b2)
+s_post_psi_believer_prior <- rbeta(S, 10.513, 20.866)
+
+plot(density(s_psi_believer_prior),col="blue", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s_post_psi_believer_prior),col="red", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+legend(0.2, 20, legend=c("Psi Believer Prior Beta(100, 202)", "Posterior Beta(10.513, 20.866)"),
+       col=c("blue",  "red"), lty=1:1, cex=0.8)
+```
+
+## 2.5.3 Plot for Psi Skeptic Prior
+```{r}
+s_psi_skeptic_prior <- rbeta(S, a3, b3)
+s_post_psi_skeptic_prior <- rbeta(S, 8.610, 19.196)
+
+plot(density(s_psi_skeptic_prior),col="blue", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+par(new=TRUE)
+plot(density(s_post_psi_skeptic_prior),col="red", type="l", xlab = expression(theta), xlim=range(c(0, 1)), ylab = "probability", ylim=range(c(0, 20.0)), main="PDF")
+legend(0.2, 20, legend=c("Psi Skeptic Prior Beta(100, 298)", "Posterior Beta(8.610, 19.196)"),
+       col=c("blue",  "red"), lty=1:1, cex=0.8)
+```
+
+#2.6 Comments
+Although the data given is the same for three senarios, the posteriors we got are different, they somewhat refects different prior bias. 
+
+For Psi Believer Prior which has higher expectation for hit probability, the posterior we got for believer prior also shows the highest posterior mean and 95% posterior credible interval. 
+
+For the Psi Skeptic Prior, we have and got the opposite, which shows lowest mean and 95% CI for both pior and posterior distribution.
+
+For the Open Mind Prior, it holds a mild estimation for the hit ability, and the posterior shows a moderate mean and 95% CI.
+
+# Problem 4
+## 4.1 Model
+The model I assumed is as follows:
+$$z_{s}^{c_s} \overset{\text{ind}}{\sim} Binomial(N_s^{c_s}, \theta_s^{c_s})$$
+$$\theta_s^{c_s} \overset{\text{iid}}{\sim} Beta(\alpha^{c}, \beta^{c})$$
+$$\mu^c = \frac{\alpha^{c}}{\alpha^{c} + \beta^{c}}, \eta^c = \alpha^{c} + \beta^{c}$$
+$$\mu^c \sim Beta(a, b), \eta^c \sim logNormal(m,C)$$
+where $N_s$ is the number of opportunities at bat, $z_s$ is the number of hits, $c_s$ is the primary position of player $s$. $c$ is the position indicator.
+
+The upper model means the number of hit for each player follows a Binomial distribution, and has different parameters between each other. The batting average for each player follows a Beta distribution with a position specific parameter. Finally, all position specific parameters come from the same distribution.
+
+## 4.2 RJags Implementation
+
+```{r}
+BA.data=read.csv("./BattingAverage.csv", header=T)
+head(BA.data)
+
+jags.data=list(Z = BA.data$Hits, n = BA.data$AtBats, c=BA.data$PriPosNumber,N =nrow(BA.data), m=0, C=3, a=1,b=1)
+
+jags_model = "model{
+  for (i in 1 : N){
+    Z[i] ~ dbin(theta[i], n[i])
+    theta[i] ~ dbeta(alpha[c[i]], beta[c[i]])
+  }
+  for(j in 1: 9)
+  {
+    alpha[j] =eta[j]*mu[j]
+    beta[j] = eta[j]*(1-mu[j])
+    eta[j] ~ dlnorm(m, 1/C)
+    mu[j] ~ dbeta(a, b)
+  }
+}"
+
+jags.param <- c("theta", "alpha", "beta", "mu", "eta")
+jags_fit <- jags(data = jags.data, n.chains = 5, inits = NULL, parameters.to.save = jags.param,n.iter=4000, n.burnin = 1000, DIC=T, model.file = textConnection(jags_model))
+
+jags.mcmc = as.mcmc(jags_fit)
+mcmc_trace(jags.mcmc, pars = c("mu[1]"))
+```
+
+## 4.3 Pitcher vs Catcher
+```{r}
+mcmc_intervals(jags.mcmc, pars=c("mu[1]", "mu[2]"), prob = 0.8, # 80% intervals - inner
+    prob_outer = 0.95, # 95% - outer
+    point_est = "mean")
+```
+
+### The batting average of pitcher and catcher are estimated by mu[1] and mu[2], respectively. From the plot above, we can see catcher has a hihger batting ability (around $0.24$) overall, whereas the pitcher only shows around $0.13$.
+
+## 4.4 Pitcher vs First Base Player
+```{r}
+mcmc_intervals(jags.mcmc, pars=c("mu[1]", "mu[3]"), prob = 0.8, # 80% intervals - inner
+    prob_outer = 0.95, # 95% - outer
+    point_est = "mean")
+```
+
+### The batting average of pitcher and first base player are estimated by mu[1] and mu[3], respectively. From the estimation above, first base player shows stronger batting ability (> $0.25$) than pitcher (around $0.13$). Also first base player shows more stable batting ability indicated by shorter posterior credible interval.
+
+## 4.5 Welington Castillo(Catcher) vs Matt Wieters(Catcher)
+
+```{r}
+mcmc_intervals(jags.mcmc, pars=c("theta[142]", "theta[921]"), prob = 0.8, # 80% intervals - inner
+    prob_outer = 0.95, # 95% - outer
+    point_est = "mean")
+```
+
+### The estimated batting averge of Welington Castillo(Catcher) and Matt Wieters(Catcher) are shown as theta[142] and theta[921] in the upper figure. Welington Castillo was estimated as higher batting averge but less stable in performance, which is indicated by larger credible interval. On contarary, although Matt Wieters shows slightly lower batting ability, but have more stable performance, which we can tell from the shrinkage in the estimate.
+
+## 4.6 	Andrew McCutchen(Center Field) vs Jason Castro(Catcher)
+
+```{r}
+mcmc_intervals(jags.mcmc, pars=c("theta[573]", "theta[143]"), prob = 0.8, # 80% intervals - inner
+    prob_outer = 0.95, # 95% - outer
+    point_est = "mean")
+```
+
+### The estimated batting averge of Andrew McCutchen(Center Field) and Jason Castro(Catcher) are shown as theta[573] and theta[143] in the upper figure. Andrew McCutchen was estimated with higher batting averge(around 0.32) and more stable in performance, since we can see the the shrinkage in the estimate. On contarary, Jason Castro shows much lower batting ability(0.25), and less stable performance.
