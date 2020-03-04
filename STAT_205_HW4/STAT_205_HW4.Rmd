@@ -1,0 +1,28 @@
+---
+title: "STAT 205 HW4"
+author: "HONGLEI REN"
+date: "03/04/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(robustHD)
+```
+
+# EX 9.21
+
+### (a) An exploratory data analysis.
+```{r}
+  FEVdata <- read.table(file="FullFEVdata.txt",header=T, sep="") 
+  attach(FEVdata)
+  pairs(~Age+Hgt+Male+Smoke+FEV,labels=c("Age","Height","Male","Smoke","FEV"),data=FEVdata)
+```
+From the figure above, we can see that Age and Height are postively correlated and FEV increases as either of them increase. Smoke-adolescents in this study range from 7 to 18 years old, and have higher FEV.
+
+```{r}
+  Age.st=standardize(Age)
+  Hgt.st=standardize(Hgt)
+  FEV.st=standardize(FEV)
+  X.mat=model.matrix(~ as.factor(Male) + as.factor(Smoke) + Age.st + Hgt.st + as.factor(Smoke)*Age.st + Age.st * Hgt.st)
+```
