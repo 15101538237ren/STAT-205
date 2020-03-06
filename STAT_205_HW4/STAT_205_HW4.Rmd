@@ -11,6 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 library(knitr)
+library(readr)
 library(broom)
 library(tidyverse)
 library(R2jags)
@@ -215,7 +216,62 @@ p1 + p2
 
 Above, we constructed a linear model by using age, smoke, and their interaction as predictor. For the priors, we used BCJ priors for $\beta$(coefficients), and Gamma prior for $\tau$ (error term). From the inferred and predictive FEVs, we can see that smokers generally have lower FEVs than non-smokers, and as the age increasing, FEV is increasing as well.
 
+# EX 9.22
+```{r message=F}
+coleman = read_csv(file="Coleman.csv")  
+attach(coleman)
+jags.data=list(
+  y=y,
+  x=x,
+  n=dim(coleman)[1],
+  b=0.01, c=0.001## diffuse prior
+)
 
+model_reg <- 
+"model{ 
+  for(i in 1:n){
+      y[i] ~ dnorm(mu[i], tau)
+      mu[i] <- beta[1] + beta[2]* x[i]
+  }
+  for(j in 1:2){
+    beta[j] ~ dmnorm(0, b)
+  }
+  
+  tau ~ dgamma(c, c)
+  pred = beta[1] + beta[2]*(-16.04)
+}"
+
+jags.param=c("tau", "beta", "pred")
+```
+```{r echo=T, results='hide'}
+jags.fit <- jags(data=jags.data, parameters.to.save = jags.param,
+                 model.file=textConnection(model_reg), n.iter=20000, n.chains=1,
+                 n.burnin=5000,n.thin=1, DIC=T, digits=6)
+```
+
+```{r echo = FALSE, message =F}
+coleman %>% 
+  ggplot() + 
+  aes(x = x, y = y) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm")
+```
+
+From the fitted result above, `x` and `y` are positively correlated with `r cor(x, y)` Pearson correlation.
+
+```{r}
+jags.fit
+jags.mcmc = as.mcmc(jags.fit) 
+mcmc_trace(jags.mcmc, pars = c("beta[2]", "tau"))
+```
+
+#### From the inference above, the  predictive value of $x = −16.04$ is $24.161$, with 95% credible interval (21.693, 26.535).
+
+```{r}
+mcmc_dens(jags.mcmc, pars = c("pred"))
+```
+
+#### I am not surprised that higher socioeconomic status were positively associated with higher test scores, because they can receive better education resource(environment, teaching method, etc.)
 
 
 
