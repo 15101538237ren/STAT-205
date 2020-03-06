@@ -2,17 +2,28 @@
 title: "STAT 205 HW4"
 author: "HONGLEI REN"
 date: "03/04/2020"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(knitr)
+library(broom)
+library(tidyverse)
+library(R2jags)
+library(epiR)
+library(bayesplot)
+library(coda)
 library(robustHD)
+library(patchwork)
 ```
 
 # EX 9.21
 
-### (a) An exploratory data analysis.
+### (a) Data analysis
 ```{r}
   FEVdata <- read.table(file="FullFEVdata.txt",header=T, sep="") 
   attach(FEVdata)
@@ -20,9 +31,191 @@ library(robustHD)
 ```
 From the figure above, we can see that Age and Height are postively correlated and FEV increases as either of them increase. Smoke-adolescents in this study range from 7 to 18 years old, and have higher FEV.
 
+### (b) Prior, Predictors and Model Diagnosis
+#### 1) Predictor selection
+I chose indicators of smoke, age, height, interactions between age and smoke as the predictors, which are suggested by data analysis.
+
 ```{r}
   Age.st=standardize(Age)
-  Hgt.st=standardize(Hgt)
   FEV.st=standardize(FEV)
-  X.mat=model.matrix(~ as.factor(Male) + as.factor(Smoke) + Age.st + Hgt.st + as.factor(Smoke)*Age.st + Age.st * Hgt.st)
+  X.mat=model.matrix(~ as.factor(Smoke) + Age.st  + as.factor(Smoke)*Age.st)
 ```
+#### 2) Prior Construction
+Here, I apply the BCJ independent priors for $\beta$ and $\tau$. According to the given prior knowledge from Dr. David. We have:
+
+$$\widetilde{X} = \begin{bmatrix}
+\widetilde{x_1}'\\ 
+\widetilde{x_2}'\\ 
+\widetilde{x_3}'\\ 
+\widetilde{x_4}'
+\end{bmatrix}=  \begin{bmatrix}
+1 & 1 & 18 & 18  \\ 
+1 & 0  & 16 & 0  \\ 
+1 & 1 & 13 & 13 \\ 
+1 & 0 & 12 & 0
+\end{bmatrix}$$
+
+$$
+\widetilde{X}\beta = \widetilde{m} = \begin{bmatrix}
+\widetilde{m_1}'\\ 
+\widetilde{m_2}'\\ 
+\widetilde{m_3}'\\ 
+\widetilde{m_4}'
+\end{bmatrix}=  N(\begin{bmatrix}
+4.0\\ 
+4.2\\ 
+3.4\\ 
+2.7
+\end{bmatrix}, \begin{bmatrix}
+0.118 & 0 & 0 & 0 \\ 
+0 & 0.118 & 0 & 0 \\ 
+0 & 0 & 0.067 & 0 \\ 
+0 & 0 & 0 & 0.118
+\end{bmatrix})
+$$
+
+Therefore, we got the prior for $\beta$ is:
+$$
+\beta =\widetilde{X}^{-1} \widetilde{m} = \widetilde{X}^{-1}  \begin{bmatrix}
+\widetilde{m_1}'\\ 
+\widetilde{m_2}'\\ 
+\widetilde{m_3}'\\ 
+\widetilde{m_4}'
+\end{bmatrix}=  N(\begin{bmatrix}
+-1.80\\
+3.64\\
+0.375\\
+-0.255\\
+\end{bmatrix}, \begin{bmatrix}
+2.9500  & -2.9500  & -0.2065  &  0.2065\\
+   -2.9500  &  4.6160   & 0.2065  & -0.3161\\
+   -0.2065 &   0.2065 &   0.0147  & -0.0147\\
+    0.2065 &  -0.3161 &  -0.0147  &  0.0221\\
+\end{bmatrix})
+$$
+
+For $\tau$, I assume $gamma(0.001, 0.001)$ as prior.
+
+```{r message=F}
+Ytilde <- c(4., 4.2, 3.4, 2.7) # Specify prior mean vector
+D <- diag(c(0.118, 0.118, 0.067, 0.118)) 
+Xtilde <- matrix(c(1, 1, 1, 1, 1, 0, 1, 0, 18, 16, 13, 12, 18, 0, 13, 0),4,4,byrow=F)
+Xtildeinv <- solve(Xtilde) # Invert Xtilde
+# Get prior mean vector and precision matrix for beta
+beta0 <- c(t(Xtildeinv %*% Ytilde))
+C0 <- Xtildeinv %*% D %*% t(Xtildeinv)
+C0inv <- solve(C0)
+
+jags.data=list(
+  Y=FEV,
+  Xmat=X.mat,
+  r=dim(X.mat)[2],
+  n=dim(X.mat)[1],
+  beta0=beta0,
+  C0inv=C0inv,
+  a=0.001, b=0.001## diffuse prior
+)
+
+model_reg <- "model{
+for(i in 1:n){
+  Y[i] ~ dnorm(mu[i], tau)
+  mu[i] <- beta[1] + beta[2]*Xmat[i,2] + beta[3]*Xmat[i,3] + beta[4]*Xmat[i,4]
+}
+beta[1:r] ~ dmnorm(beta0[1:r], C0inv[1:r, 1:r]) # g prior 
+tau ~ dgamma(a, b)
+
+for(i in 1:19){
+meanFEVs[i] <- beta[1] + beta[2]+ (beta[3]+beta[4])* i 
+meanFEVns[i] <- beta[1] + beta[3]* i
+}
+FEV20s ~ dnorm(mu20s,tau)
+FEV20ns ~ dnorm(mu20ns,tau)
+mu20s <- beta[1] + beta[2]+ (beta[3]+beta[4])* 20
+mu20ns <- beta[1] + beta[3]*20 
+}"
+
+jags.param=c("beta","tau","meanFEVns[7]","meanFEVns[8]","meanFEVns[9]","meanFEVns[10]","meanFEVns[11]", "meanFEVns[12]", "meanFEVns[13]", "meanFEVns[14]", "meanFEVns[15]", "meanFEVns[16]", "meanFEVns[17]", "meanFEVns[18]", "meanFEVns[19]", "meanFEVs[7]","meanFEVs[8]","meanFEVs[9]","meanFEVs[10]","meanFEVs[11]", "meanFEVs[12]", "meanFEVs[13]", "meanFEVs[14]", "meanFEVs[15]", "meanFEVs[16]", "meanFEVs[17]", "meanFEVs[18]", "meanFEVs[19]", "FEV20s","FEV20ns") 
+```
+```{r echo=T, results='hide'}
+jags.fit <- jags(data=jags.data, parameters.to.save = jags.param,
+model.file=textConnection(model_reg), n.iter=20000, n.chains=1, n.burnin=5000, n.thin=1, DIC=T, digits=6)
+```
+#### 3) Convergence and model diagnosis
+
+```{r message=F}
+jags.mcmc = as.mcmc(jags.fit) 
+mcmc_trace(jags.mcmc, pars = c("beta[1]", "tau"))
+```
+
+
+From `beta[1]` and `tau` in the fitted MCMC chain, we can see that the parameters are converged because it is well-mixed, no zig-zag, and the model also shows an white-noise like error term `tau`, which suggests that the covariates are independent.
+
+### c) Posterior inferences
+The inferred posterior paramters are listed below:
+```{r}
+jags.fit
+```
+
+```{r}
+library(bayesplot)
+par(mfrow=c(1,2))
+
+mcmc_dens(jags.mcmc, pars=c("meanFEVns[18]", "meanFEVs[18]")) 
+mcmc_dens(jags.mcmc, pars=c("FEV20ns", "FEV20s")) 
+```
+
+From the plot above, we can see that non-smokers are higher in both posterior FEV of 18-yrs-old group and predictive FEV of 20-yrs-old population.
+
+### d)  normal FEV ranges for several different types of adolescents
+
+The FEV ranges of non-smokers and smokers for different ages are shown below:
+```{r message=F}
+df_mcmc = data.frame(jags.mcmc[[1]])  %>% 
+  select(starts_with("meanFEV"))
+colnames(df_mcmc) <- gsub('meanFEVs.', 'smoker age ', colnames(df_mcmc), fixed=TRUE)
+colnames(df_mcmc) <- gsub('meanFEVns.', 'non smoker age ', colnames(df_mcmc), fixed=TRUE)
+df_mcmc %>% 
+  lapply(quantile, prob = c(0.05, 0.95), na.rm = TRUE) %>% 
+  data.frame() %>% 
+  t() %>% 
+  kable()
+```
+For easy reading the result, I visulized the ranges as follows:
+```{r message=F}
+color_scheme_set("blue")
+par(mfrow=c(1,2))
+p1 = mcmc_intervals(jags.mcmc, pars = c("meanFEVns[7]","meanFEVns[8]","meanFEVns[9]","meanFEVns[10]","meanFEVns[11]", "meanFEVns[12]", "meanFEVns[13]", "meanFEVns[14]", "meanFEVns[15]", "meanFEVns[16]", "meanFEVns[17]", "meanFEVns[18]", "meanFEVns[19]"))
+p2 = mcmc_intervals(jags.mcmc, pars = c("meanFEVs[7]","meanFEVs[8]","meanFEVs[9]","meanFEVs[10]","meanFEVs[11]", "meanFEVs[12]", "meanFEVs[13]", "meanFEVs[14]", "meanFEVs[15]", "meanFEVs[16]", "meanFEVs[17]", "meanFEVs[18]", "meanFEVs[19]"))
+p1 + p2
+```
+
+### e) Sensitivity Analysis
+By changing the `a = b = 0.001` to `a = b = 0.1`, we perfromed same pipeline, and got the ranges of FEV as follows, which do not show significant changes compared with previous one.
+```{r}
+jags.data=list(
+  Y=FEV,
+  Xmat=X.mat,
+  r=dim(X.mat)[2],
+  n=dim(X.mat)[1],
+  beta0=beta0,
+  C0inv=C0inv,
+  a=0.1, b=0.1## diffuse prior
+)
+jags.fit <- jags(data=jags.data, parameters.to.save = jags.param,
+model.file=textConnection(model_reg), n.iter=20000, n.chains=1, n.burnin=5000, n.thin=1, DIC=T, digits=6)
+
+jags.mcmc = as.mcmc(jags.fit) 
+par(mfrow=c(1,2))
+p1 = mcmc_intervals(jags.mcmc, pars = c("meanFEVns[7]","meanFEVns[8]","meanFEVns[9]","meanFEVns[10]","meanFEVns[11]", "meanFEVns[12]", "meanFEVns[13]", "meanFEVns[14]", "meanFEVns[15]", "meanFEVns[16]", "meanFEVns[17]", "meanFEVns[18]", "meanFEVns[19]"))
+p2 = mcmc_intervals(jags.mcmc, pars = c("meanFEVs[7]","meanFEVs[8]","meanFEVs[9]","meanFEVs[10]","meanFEVs[11]", "meanFEVs[12]", "meanFEVs[13]", "meanFEVs[14]", "meanFEVs[15]", "meanFEVs[16]", "meanFEVs[17]", "meanFEVs[18]", "meanFEVs[19]"))
+p1 + p2
+```
+
+### f) Summary the Analysis
+
+Above, we constructed a linear model by using age, smoke, and their interaction as predictor. For the priors, we used BCJ priors for $\beta$(coefficients), and Gamma prior for $\tau$ (error term). From the inferred and predictive FEVs, we can see that smokers generally have lower FEVs than non-smokers, and as the age increasing, FEV is increasing as well.
+
+
+
+
+
